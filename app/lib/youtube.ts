@@ -30,6 +30,18 @@ export interface VideoStats {
   duration: string;
 }
 
+export interface ChannelFilters {
+  subscriberCount: {
+    min: number | null;
+    max: number | null;
+  };
+  videoCount: {
+    min: number | null;
+    max: number | null;
+  };
+  sortBy: 'relevance' | 'viewCount' | 'videoCount' | 'subscriberCount';
+}
+
 // Get channel statistics
 export async function getChannelStats(channelId: string): Promise<ChannelStats | null> {
   try {
@@ -44,10 +56,34 @@ export async function getChannelStats(channelId: string): Promise<ChannelStats |
   }
 }
 
-// Search for channels
-export async function searchChannels(query: string): Promise<ChannelStats[]> {
+// Search for channels with optional filters
+export async function searchChannels(
+  query: string, 
+  filters?: ChannelFilters
+): Promise<ChannelStats[]> {
   try {
-    const response = await fetch(`/api/youtube?action=searchChannels&query=${encodeURIComponent(query)}`);
+    let url = `/api/youtube?action=searchChannels&query=${encodeURIComponent(query)}`;
+    
+    // Add filter parameters if provided
+    if (filters) {
+      if (filters.subscriberCount.min !== null) {
+        url += `&subscriberMin=${filters.subscriberCount.min}`;
+      }
+      if (filters.subscriberCount.max !== null) {
+        url += `&subscriberMax=${filters.subscriberCount.max}`;
+      }
+      if (filters.videoCount.min !== null) {
+        url += `&videoMin=${filters.videoCount.min}`;
+      }
+      if (filters.videoCount.max !== null) {
+        url += `&videoMax=${filters.videoCount.max}`;
+      }
+      if (filters.sortBy !== 'relevance') {
+        url += `&sortBy=${filters.sortBy}`;
+      }
+    }
+    
+    const response = await fetch(url);
     if (!response.ok) {
       return [];
     }

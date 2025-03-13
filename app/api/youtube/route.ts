@@ -111,11 +111,19 @@ export async function GET(request: Request) {
         return NextResponse.json({ error: 'Query parameter is required' }, { status: 400 });
       }
       
+      // Get filter parameters
+      const subscriberMin = searchParams.get('subscriberMin');
+      const subscriberMax = searchParams.get('subscriberMax');
+      const videoMin = searchParams.get('videoMin');
+      const videoMax = searchParams.get('videoMax');
+      const sortBy = searchParams.get('sortBy') || 'relevance';
+      
       const response = await youtube.search.list({
         part: ['snippet'],
         q: query,
         type: ['channel'],
-        maxResults: 10,
+        maxResults: 50, // Get more results for filtering
+        order: sortBy === 'relevance' ? 'relevance' : undefined,
       });
       
       if (!response.data.items || response.data.items.length === 0) {
@@ -133,7 +141,7 @@ export async function GET(request: Request) {
         return NextResponse.json([], { status: 200 });
       }
       
-      const channels = channelDetails.data.items.map((channel) => {
+      let channels = channelDetails.data.items.map((channel) => {
         const snippet = channel.snippet || {};
         const statistics = channel.statistics || {};
         
@@ -153,6 +161,35 @@ export async function GET(request: Request) {
           viewCount: parseInt(statistics.viewCount || '0', 10),
         };
       });
+      
+      // Apply filters
+      if (subscriberMin || subscriberMax || videoMin || videoMax) {
+        channels = channels.filter((channel) => {
+          const passesSubscriberMin = !subscriberMin || channel.subscriberCount >= parseInt(subscriberMin, 10);
+          const passesSubscriberMax = !subscriberMax || channel.subscriberCount <= parseInt(subscriberMax, 10);
+          const passesVideoMin = !videoMin || channel.videoCount >= parseInt(videoMin, 10);
+          const passesVideoMax = !videoMax || channel.videoCount <= parseInt(videoMax, 10);
+          
+          return passesSubscriberMin && passesSubscriberMax && passesVideoMin && passesVideoMax;
+        });
+      }
+      
+      // Apply sorting (if not relevance, which is handled by the API)
+      if (sortBy !== 'relevance') {
+        channels.sort((a, b) => {
+          if (sortBy === 'subscriberCount') {
+            return b.subscriberCount - a.subscriberCount;
+          } else if (sortBy === 'videoCount') {
+            return b.videoCount - a.videoCount;
+          } else if (sortBy === 'viewCount') {
+            return b.viewCount - a.viewCount;
+          }
+          return 0;
+        });
+      }
+      
+      // Limit to 10 results after filtering
+      channels = channels.slice(0, 10);
       
       return NextResponse.json(channels);
     } catch (error) {
