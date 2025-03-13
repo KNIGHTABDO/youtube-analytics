@@ -1,0 +1,7 @@
+{
+  "/dashboard/page": "app/dashboard/page.js",
+  "/page": "app/page.js",
+  "/search/page": "app/search/page.js",
+  "/api/youtube/route": "app/api/youtube/route.js",
+  "/channel/[id]/page": "app/channel/[id]/page.js"
+}
